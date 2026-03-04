@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid World - RL Policy Evaluation</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --text-color: #2c3e50;
+            --cell-bg: #ffffff;
+            --start-color: #2ecc71;
+            --end-color: #e74c3c;
+            --obstacle-color: #7f8c8d;
+            --primary: #3498db;
+            --primary-hover: #2980b9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+        }
+
+        p.subtitle {
+            margin: 0;
+            color: #7f8c8d;
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .controls label {
+            font-weight: 600;
+        }
+
+        input[type="number"] {
+            width: 70px;
+            padding: 8px 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary);
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background-color: var(--primary);
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #evaluateBtn {
+            background-color: #9b59b6;
+        }
+
+        #evaluateBtn:hover {
+            background-color: #8e44ad;
+        }
+
+        #evaluateBtn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status-container {
+            background-color: #e8f4f8;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: 600;
+            color: #2980b9;
+            margin-bottom: 30px;
+            min-width: 300px;
+            text-align: center;
+            border: 2px solid #d4eaf2;
+        }
+
+        .grid-wrapper {
+            background: #fff;
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .grid-container {
+            display: grid;
+            gap: 8px;
+            background-color: #ecf0f1;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .cell {
+            background-color: var(--cell-bg);
+            width: 75px;
+            height: 75px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+            user-select: none;
+        }
+
+        .cell:hover {
+            transform: scale(1.08);
+            z-index: 10;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .cell.start {
+            background-color: var(--start-color);
+            color: white;
+            border: 2px solid #27ae60;
+        }
+
+        .cell.end {
+            background-color: var(--end-color);
+            color: white;
+            border: 2px solid #c0392b;
+        }
+
+        .cell.obstacle {
+            background-color: var(--obstacle-color);
+            color: white;
+            box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .arrow {
+            font-size: 1.8rem;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .value {
+            font-size: 0.85rem;
+            margin-top: 6px;
+            font-weight: 700;
+            color: #34495e;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .start .value {
+            color: #145a32;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .end .value {
+            color: #78281f;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .obstacle .value {
+            color: #2c3e50;
+            background: rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <h1>網格世界 (Grid World) 強化學習</h1>
+        <p class="subtitle">使用 Bellman 方程進行策略評估 (Policy Evaluation)</p>
+    </div>
+
+    <div class="controls">
+        <label for="gridSize">網格大小 (n):</label>
+        <input type="number" id="gridSize" value="5" min="5" max="9">
+        <button id="generateBtn">生成網格</button>
+        <button id="evaluateBtn" disabled>評估狀態價值 V(s)</button>
+    </div>
+
+    <div id="status" class="status-container">點擊「生成網格」以創建新網格。</div>
+
+    <div class="grid-wrapper">
+        <div id="grid" class="grid-container"></div>
+    </div>
+
+    <script>
+        const arrowsMap = { 'U': '↑', 'D': '↓', 'L': '←', 'R': '→' };
+        const actions = ['U', 'D', 'L', 'R'];
+
+        let n = 5;
+        let clickCount = 0;
+        let requiredClicks = 0;
+        let startCell = null;
+        let endCell = null;
+        let obstacles = [];
+        let policy = [];
+
+        const generateBtn = document.getElementById('generateBtn');
+        const evaluateBtn = document.getElementById('evaluateBtn');
+        const gridContainer = document.getElementById('grid');
+        const statusDiv = document.getElementById('status');
+        const sizeInput = document.getElementById('gridSize');
+
+        // Initial setup
+        createGrid(n);
+
+        generateBtn.addEventListener('click', () => {
+            let size = parseInt(sizeInput.value);
+            if (isNaN(size) || size < 5 || size > 9) {
+                alert("請輸入介於 5 到 9 之間的有效大小。");
+                sizeInput.value = Math.max(5, Math.min(9, size || 5));
+                return;
+            }
+            n = size;
+            createGrid(n);
+        });
+
+        function createGrid(size) {
+            gridContainer.innerHTML = '';
+            gridContainer.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+
+            clickCount = 0;
+            // 1st click: start, 2nd click: end, remaining (n-2) clicks: obstacles -> total n clicks
+            requiredClicks = size;
+            startCell = null;
+            endCell = null;
+            obstacles = [];
+            policy = [];
+            evaluateBtn.disabled = true;
+
+            for (let r = 0; r < size; r++) {
+                let rowPolicy = [];
+                for (let c = 0; c < size; c++) {
+                    const action = actions[Math.floor(Math.random() * actions.length)];
+                    rowPolicy.push(action);
+
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+
+                    const arrowDiv = document.createElement('div');
+                    arrowDiv.className = 'arrow';
+                    arrowDiv.textContent = arrowsMap[action];
+
+                    const valueDiv = document.createElement('div');
+                    valueDiv.className = 'value';
+                    valueDiv.textContent = '-';
+
+                    cell.appendChild(arrowDiv);
+                    cell.appendChild(valueDiv);
+
+                    cell.addEventListener('click', handleCellClick);
+
+                    gridContainer.appendChild(cell);
+                }
+                policy.push(rowPolicy);
+            }
+            updateStatus();
+        }
+
+        function handleCellClick(e) {
+            const cell = e.currentTarget;
+            const r = parseInt(cell.dataset.r);
+            const c = parseInt(cell.dataset.c);
+
+            if (cell.classList.contains('start') || cell.classList.contains('end') || cell.classList.contains('obstacle')) {
+                return; // Ignore if already configured
+            }
+
+            if (clickCount === 0) {
+                cell.classList.add('start');
+                startCell = [r, c];
+                clickCount++;
+            } else if (clickCount === 1) {
+                cell.classList.add('end');
+                endCell = [r, c];
+                cell.querySelector('.arrow').textContent = '🏁';
+                clickCount++;
+            } else if (clickCount < requiredClicks) {
+                cell.classList.add('obstacle');
+                obstacles.push([r, c]);
+                cell.querySelector('.arrow').textContent = '🧱';
+                clickCount++;
+            }
+
+            updateStatus();
+        }
+
+        function updateStatus() {
+            if (clickCount === 0) {
+                statusDiv.textContent = "步驟 1: 點擊任何格子設定起點 (綠色)";
+            } else if (clickCount === 1) {
+                statusDiv.textContent = "步驟 2: 點擊任何格子設定終點 (紅色)";
+            } else if (clickCount < requiredClicks) {
+                const obsLeft = requiredClicks - clickCount;
+                statusDiv.textContent = `步驟 3: 還需點擊 ${obsLeft} 個格子設定障礙物 (灰色)`;
+            } else {
+                statusDiv.textContent = "🎉 設定完成！點擊「評估狀態價值 V(s)」開始計算。";
+                evaluateBtn.disabled = false;
+            }
+        }
+
+        evaluateBtn.addEventListener('click', () => {
+            const payload = {
+                n: n,
+                start: startCell,
+                end: endCell,
+                obstacles: obstacles,
+                policy: policy
+            };
+
+            statusDiv.textContent = "⏳ 正在計算 Bellman 方程...";
+            evaluateBtn.disabled = true;
+
+            fetch('http://127.0.0.1:5000/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(async res => {
+                    if (!res.ok) {
+                        const text = await res.text();
+                        throw new Error(`HTTP Error ${res.status}: ${text.substring(0, 50)}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.error) {
+                        alert('錯誤: ' + data.error);
+                        evaluateBtn.disabled = false;
+                        return;
+                    }
+
+                    const values = data.values;
+                    const cells = gridContainer.children;
+
+                    for (let i = 0; i < cells.length; i++) {
+                        const r = parseInt(cells[i].dataset.r);
+                        const c = parseInt(cells[i].dataset.c);
+                        const valueDiv = cells[i].querySelector('.value');
+
+                        valueDiv.textContent = (values[r][c]).toFixed(2);
+                    }
+                    statusDiv.textContent = "✅ 評估完成！狀態價值已更新。";
+                    evaluateBtn.disabled = false;
+                })
+                .catch(err => {
+                    console.error(err);
+                    if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                        statusDiv.innerHTML = "❌ 無法連接後端，請確認已執行 <code>python app.py</code>";
+                    } else {
+                        statusDiv.textContent = "❌ 發生錯誤: " + err.message;
+                    }
+                    evaluateBtn.disabled = false;
+                });
+        });
+
+    </script>
+</body>
+
+</html>
