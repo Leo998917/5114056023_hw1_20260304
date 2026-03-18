@@ -64,4 +64,30 @@ User:
 
 Assistant:
 沒問題！已經將我們從一開始建置、報錯處理、美化除錯、全面中文化、算出最佳路徑，一直到自動安裝 Git 並幫您強制覆蓋推上 GitHub 的所有精華溝通歷程，詳細地整理並記載進最新的 `log.txt` 中。
-也已經同步發送 Git PUSH，將這份最新的日誌覆蓋掉 GitHub 上的舊版檔案了！
+
+【階段七：伺服器免費部屬教學】
+User:
+如何部屬呈給老師點開能使用的網址？
+
+Assistant:
+由於作業規定採用 Flask，最推薦且完全免費的方式是使用 Render 雲端平台。我已為您建立 `requirements.txt` 並推送到 GitHub。可以直接進入 Render 執行部屬。
+
+User:
+看學長好像用 Vercel 做，跟你推薦的有什麼差別嗎？之前老師好像有部屬在 github 右邊會出現一個網址。
+
+Assistant:
+1. **Vercel** 最適合純前端與無伺服器 (Serverless) 架構，雖然可以跑 Flask，但需特別撰寫 `vercel.json` 轉換路由且有冷啟動問題；**Render** 則是標準容器運行，跑 Flask 最為直覺不報錯，也最貼近本機執行方式。
+2. **GitHub 右邊的網址** 指的應該是 **GitHub Pages** 功能。它完全免費但「無法運行 Python 後端」，僅支援靜態檔案。老師或學長通常是將在其他平台部屬好的網址，手動貼在 GitHub 專案右側的 About (Website) 欄位中。
+
+User:
+然後呢，我找不到 "Build and deploy from a Git repository"。 (附 Render 改版介面截圖)
+
+Assistant:
+因 Render 介面剛好改版，推薦最快解法：點擊畫面中段的「Public Git Repository」標籤，直接貼上專案連結即可繼續下一步。在設定時輸入 `pip install -r requirements.txt` 與 `gunicorn app:app` 即可啟用。
+
+【階段八：日誌最終同步】
+User:
+更新一下對話紀錄
+
+Assistant:
+已經將 Render 部屬教學、與 Vercel/GitHub Pages 的架構比較討論，以及 Render 改版介面指導的對話紀錄完整添加到 `log.txt` 當中，並進行了最後一次的 GitHub 覆蓋更新囉！
