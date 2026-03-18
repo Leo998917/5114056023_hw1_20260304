@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>強化學習：網格世界 (Grid World)</title>
+    <style>
+        :root {
+            --bg-color: #f9fafb;
+            --panel-bg: #ffffff;
+            --text-main: #333333;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --start-color: #22c55e;
+            --end-color: #ef4444;
+            --obs-color: #4b5563;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 850px;
+            background: var(--panel-bg);
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.6rem;
+            margin-top: 0;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: #f3f4f6;
+            border-radius: 6px;
+        }
+
+        .controls select, .controls input {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .btn-restart {
+            background: #4b5563;
+        }
+        .btn-restart:hover {
+            background: #374151;
+        }
+
+        #status-panel {
+            text-align: center;
+            font-size: 1rem;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            color: #155724;
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            font-weight: 500;
+        }
+
+        .grid-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 2px;
+            background: #d1d5db;
+            border: 2px solid #d1d5db;
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+
+        .cell:hover {
+            background: #f3f4f6;
+        }
+
+        .cell.start {
+            background: var(--start-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        .cell.end {
+            background: var(--end-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        .cell.obstacle {
+            background: var(--obs-color);
+            color: white;
+        }
+        
+        /* Highlight for the optimal path */
+        .cell.optimal-path {
+            background: #fef08a; /* Soft Yellow */
+            border: 2px solid #eab308;
+            box-sizing: border-box;
+        }
+
+        .cell.start:hover, .cell.end:hover, .cell.obstacle:hover {
+            opacity: 0.9;
+        }
+
+        .cell .arrow {
+            font-size: 20px;
+            line-height: 1;
+            margin-bottom: 2px;
+            color: #1f2937;
+            font-weight: bold;
+        }
+
+        .cell .value {
+            font-size: 0.75rem;
+            background: #e5e7eb;
+            color: #374151;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .actions-panel {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .results-section {
+            display: none;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .results-section h2 {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #374151;
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+        
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 4px;
+            text-align: center;
+            display: none;
+            margin-bottom: 15px;
+            border: 1px solid #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>網格世界：強化學習 (Grid World RL)</h1>
+        
+        <div id="error-alert" class="alert-error">
+            無法連接至後端伺服器。請確認已執行 <code>python app.py</code> 並透過 http://127.0.0.1:5000 瀏覽此網頁。
+        </div>
+
+        <div class="controls">
+            <label for="grid-size" style="font-weight: 500;">網格大小 (n x n): </label>
+            <input type="number" id="grid-size" min="5" max="9" value="5" style="width: 60px;">
+            <button class="btn btn-restart" id="btn-reset">重新設定</button>
+        </div>
+
+        <div id="status-panel">載入中...</div>
+
+        <div class="grid-wrapper">
+            <div id="config-grid" class="grid"></div>
+        </div>
+
+        <div class="actions-panel">
+            <button class="btn" id="btn-hw1-2" disabled>HW1-2: 評估隨機策略</button>
+            <button class="btn" id="btn-hw1-3" disabled>HW1-3: 價值迭代 (算出最佳策略與路徑)</button>
+        </div>
+
+        <div class="results-section" id="section-hw1-2">
+            <h2>HW1-2：隨機策略與狀態價值 V(s)</h2>
+            <div class="grid-wrapper">
+                <div id="grid-hw1-2" class="grid"></div>
+            </div>
+        </div>
+
+        <div class="results-section" id="section-hw1-3">
+            <h2>HW1-3：最佳策略與狀態價值 V*(s) (黃色為最佳路徑區域)</h2>
+            <div class="grid-wrapper">
+                <div id="grid-hw1-3" class="grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ARROWS = { 'U': '↑', 'D': '↓', 'L': '←', 'R': '→' };
+        const RANDOM_ACTIONS = ['U', 'D', 'L', 'R'];
+
+        let n = 5;
+        let state = 'SET_START'; 
+        let startCell = null;
+        let endCell = null;
+        let obstacles = [];
+
+        const configGrid = document.getElementById('config-grid');
+        const gridSizeInput = document.getElementById('grid-size');
+        const statusPanel = document.getElementById('status-panel');
+        const btnReset = document.getElementById('btn-reset');
+        const btnHw12 = document.getElementById('btn-hw1-2');
+        const btnHw13 = document.getElementById('btn-hw1-3');
+        const sectionHw12 = document.getElementById('section-hw1-2');
+        const sectionHw13 = document.getElementById('section-hw1-3');
+        const gridHw12 = document.getElementById('grid-hw1-2');
+        const gridHw13 = document.getElementById('grid-hw1-3');
+
+        function init() {
+            n = parseInt(gridSizeInput.value) || 5;
+            if (n < 5) n = 5;
+            if (n > 9) n = 9;
+            gridSizeInput.value = n;
+            
+            state = 'SET_START';
+            startCell = null;
+            endCell = null;
+            obstacles = [];
+            
+            updateStatus();
+            renderGrid(configGrid, n, true);
+            
+            btnHw12.disabled = true;
+            btnHw13.disabled = true;
+            sectionHw12.style.display = 'none';
+            sectionHw13.style.display = 'none';
+        }
+
+        function updateStatus() {
+            statusPanel.style.color = '#155724';
+            statusPanel.style.backgroundColor = '#d4edda';
+            statusPanel.style.borderColor = '#c3e6cb';
+            
+            if (state === 'SET_START') {
+                statusPanel.innerText = `步驟 1 / 3：請點擊網格設定「起點 (綠色)」`;
+            } else if (state === 'SET_END') {
+                statusPanel.innerText = `步驟 2 / 3：請點擊網格設定「終點 (紅色)」`;
+                statusPanel.style.color = '#721c24';
+                statusPanel.style.backgroundColor = '#f8d7da';
+                statusPanel.style.borderColor = '#f5c6cb';
+            } else if (state === 'SET_OBSTACLE') {
+                let maxObs = n - 2;
+                let remaining = maxObs - obstacles.length;
+                statusPanel.innerText = `步驟 3 / 3：請設定「障礙物 (灰色)」 (還需點選 ${remaining} 格)`;
+                statusPanel.style.color = '#383d41';
+                statusPanel.style.backgroundColor = '#e2e3e5';
+                statusPanel.style.borderColor = '#d6d8db';
+            } else {
+                statusPanel.innerText = `設定完成！請點選下方按鈕執行演算法。`;
+                statusPanel.style.color = '#004085';
+                statusPanel.style.backgroundColor = '#cce5ff';
+                statusPanel.style.borderColor = '#b8daff';
+            }
+        }
+
+        function handleCellClick(r, c) {
+            if (state === 'SET_START') {
+                startCell = [r, c];
+                state = 'SET_END';
+            } else if (state === 'SET_END') {
+                if (r === startCell[0] && c === startCell[1]) return;
+                endCell = [r, c];
+                state = 'SET_OBSTACLE';
+            } else if (state === 'SET_OBSTACLE') {
+                if (r === startCell[0] && c === startCell[1]) return;
+                if (r === endCell[0] && c === endCell[1]) return;
+                
+                let existingIdx = obstacles.findIndex(obs => obs[0] === r && obs[1] === c);
+                if (existingIdx >= 0) {
+                    obstacles.splice(existingIdx, 1);
+                } else {
+                    if (obstacles.length < n - 2) {
+                        obstacles.push([r, c]);
+                    }
+                }
+                
+                if (obstacles.length === n - 2) {
+                    state = 'DONE';
+                    btnHw12.disabled = false;
+                    btnHw13.disabled = false;
+                }
+            }
+            
+            updateStatus();
+            renderGrid(configGrid, n, true);
+        }
+
+        function createDOMCell(r, c, isInteractive) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            
+            if (startCell && startCell[0] === r && startCell[1] === c) {
+                cell.classList.add('start');
+                cell.innerText = '起點';
+            } else if (endCell && endCell[0] === r && endCell[1] === c) {
+                cell.classList.add('end');
+                cell.innerText = '終點';
+            } else if (obstacles.some(obs => obs[0] === r && obs[1] === c)) {
+                cell.classList.add('obstacle');
+                cell.innerText = '障礙';
+            }
+            
+            if (isInteractive && state !== 'DONE') {
+                cell.addEventListener('click', () => handleCellClick(r, c));
+            }
+            
+            return cell;
+        }
+
+        function renderGrid(container, n, isInteractive) {
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${n}, 60px)`;
+            
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    container.appendChild(createDOMCell(r, c, isInteractive));
+                }
+            }
+        }
+
+        function renderResultGrid(container, n, policy, V, optimalPathSet = null) {
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${n}, 60px)`;
+            
+            for (let r = 0; r < n; r++) {
+                for (let c = 0; c < n; c++) {
+                    let cell = createDOMCell(r, c, false);
+                    
+                    let isStart = startCell && startCell[0] === r && startCell[1] === c;
+                    let isEnd = endCell && endCell[0] === r && endCell[1] === c;
+                    let isObstacle = obstacles.some(obs => obs[0] === r && obs[1] === c);
+                    
+                    if (optimalPathSet && optimalPathSet.has(`${r},${c}`) && !isStart && !isEnd) {
+                        cell.classList.add('optimal-path');
+                    }
+                    
+                    if (!isObstacle && !isEnd) {
+                        let arrowDiv = document.createElement('div');
+                        arrowDiv.classList.add('arrow');
+                        arrowDiv.innerText = ARROWS[policy[r][c]] || '';
+                        
+                        let valDiv = document.createElement('div');
+                        valDiv.classList.add('value');
+                        valDiv.innerText = V[r][c].toFixed(2);
+                        
+                        // Keep text '起點' but add arrow and value vertically
+                        if (isStart) {
+                            valDiv.style.marginTop = '2px';
+                        }
+                        
+                        if (!isStart) cell.innerHTML = ''; 
+                        cell.appendChild(arrowDiv);
+                        cell.appendChild(valDiv);
+                    }
+                    
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        function computeOptimalPath(policy, n, start, end, obstacles) {
+            let path = new Set();
+            let curr_r = start[0];
+            let curr_c = start[1];
+            
+            let max_steps = n * n; // prevent cycles blocking UI
+            let steps = 0;
+            
+            path.add(`${curr_r},${curr_c}`);
+            
+            while (steps < max_steps) {
+                if (curr_r === end[0] && curr_c === end[1]) {
+                    break;
+                }
+                
+                let action = policy[curr_r][curr_c];
+                let next_r = curr_r;
+                let next_c = curr_c;
+                
+                if (action === 'U') next_r--;
+                else if (action === 'D') next_r++;
+                else if (action === 'L') next_c--;
+                else if (action === 'R') next_c++;
+                
+                // Boundaries or hitting an obstacle -> stops progressing effectively
+                if (next_r < 0 || next_r >= n || next_c < 0 || next_c >= n) break;
+                
+                let isObstacle = obstacles.some(obs => obs[0] === next_r && obs[1] === next_c);
+                if (isObstacle) break; 
+                
+                curr_r = next_r;
+                curr_c = next_c;
+                let cellKey = `${curr_r},${curr_c}`;
+                
+                if (path.has(cellKey)) {
+                    // Loop detected
+                    break;
+                }
+                
+                path.add(cellKey);
+                steps++;
+            }
+            
+            return path;
+        }
+
+        btnReset.addEventListener('click', init);
+        gridSizeInput.addEventListener('change', init);
+
+        async function apiCall(endpoint, payload) {
+            if (window.location.protocol === 'file:') {
+                document.getElementById('error-alert').style.display = 'block';
+                throw new Error("Local file:// protocol unsupported. Use backned.");
+            }
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error("伺服器回應錯誤");
+                return await response.json();
+            } catch (e) {
+                document.getElementById('error-alert').style.display = 'block';
+                console.error(e);
+                throw e;
+            }
+        }
+
+        btnHw12.addEventListener('click', async () => {
+            btnHw12.disabled = true;
+            btnHw12.innerText = '處理中...';
+            
+            let randomPolicy = [];
+            for (let r = 0; r < n; r++) {
+                let row = [];
+                for (let c = 0; c < n; c++) {
+                    row.push(RANDOM_ACTIONS[Math.floor(Math.random() * RANDOM_ACTIONS.length)]);
+                }
+                randomPolicy.push(row);
+            }
+            
+            try {
+                const data = await apiCall('/api/evaluate', {
+                    n, start: startCell, end: endCell, obstacles, policy: randomPolicy
+                });
+                sectionHw12.style.display = 'block';
+                renderResultGrid(gridHw12, n, randomPolicy, data.V, null);
+                sectionHw12.scrollIntoView({ behavior: 'smooth' });
+            } finally {
+                btnHw12.disabled = false;
+                btnHw12.innerText = 'HW1-2: 評估隨機策略';
+            }
+        });
+
+        btnHw13.addEventListener('click', async () => {
+            btnHw13.disabled = true;
+            btnHw13.innerText = '計算中...';
+            
+            try {
+                const data = await apiCall('/api/optimize', {
+                    n, start: startCell, end: endCell, obstacles
+                });
+                
+                let optimalPathSet = computeOptimalPath(data.policy, n, startCell, endCell, obstacles);
+                
+                sectionHw13.style.display = 'block';
+                renderResultGrid(gridHw13, n, data.policy, data.V, optimalPathSet);
+                sectionHw13.scrollIntoView({ behavior: 'smooth' });
+            } finally {
+                btnHw13.disabled = false;
+                btnHw13.innerText = 'HW1-3: 價值迭代 (找出最佳策略與路徑)';
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
